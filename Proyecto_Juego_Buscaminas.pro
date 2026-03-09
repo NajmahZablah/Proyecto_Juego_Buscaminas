@@ -3,21 +3,21 @@ CONFIG += console c++17
 CONFIG -= app_bundle
 CONFIG -= qt
 
-SOURCES += \
-        main.cpp
+INCLUDEPATH += C:/Aplicaciones/SFML/SFML-2.6.2/include
 
-SFML_DIR = C:/SFML-2.6.2
+LIBS += -LC:/Aplicaciones/SFML/SFML-2.6.2/lib \
+        -lsfml-graphics \
+        -lsfml-window   \
+        -lsfml-system   \
+        -lsfml-audio
 
-INCLUDEPATH += $$SFML_DIR/include
+SOURCES += main.cpp
 
-CONFIG(debug, debug|release) {
-    LIBS += -L$$SFML_DIR/lib \
-            -lsfml-graphics-d \
-            -lsfml-window-d \
-            -lsfml-system-d
-} else {
-    LIBS += -L$$SFML_DIR/lib \
-            -lsfml-graphics \
-            -lsfml-window \
-            -lsfml-system
-}
+HEADERS += \
+    LevelSelectScreen.h \
+    MainMenuScreen.h \
+    ScreenManager.h \
+    SplashScreen.h \
+    UIHelpers.h \
+    UserAuthScreen.h \
+    UserManager.h
