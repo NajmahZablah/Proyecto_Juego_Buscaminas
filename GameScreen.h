@@ -21,12 +21,15 @@
  * Click izquierdo -> revelar celda
  * Click derecho -> poner/quitar bandera
  * R -> reiniciar partida (mismo nivel)
- * Escape -> volver al menú principal
+ * ESC -> vuelve al menú principal
  *
  * Estados del juego:
  * Jugando -> partida activa
  * Ganado -> todas las celdas seguras reveladas
  * Perdido -> el jugador pisó una mina
+ *
+ * CAMBIOS PENDIENTES:
+ * 1) Mostrar "VICTORIA!" si ganó el jugador
 */
 
 // Colores estándar de los números 1-8
@@ -66,10 +69,11 @@ public:
     ::GameScreen handleEvent(const sf::Event& e) {
 
         // Teclado
-        if (e.type == sf::Event::KeyPressed) {
+        if (e.type == sf::Event::KeyReleased) {
             if (e.key.code == sf::Keyboard::Escape) {
                 return ::GameScreen::MAIN_MENU;
             }
+
             if (e.key.code == sf::Keyboard::R) {
                 iniciarPartida();
             }
@@ -308,7 +312,7 @@ private:
         // Teclas de ayuda — parte baja del HUD
         sf::Text lblHelp;
         lblHelp.setFont(m_font);
-        lblHelp.setString("R: reiniciar   ESC: menu");
+        lblHelp.setString("R: reiniciar | ESC: menu");
         lblHelp.setCharacterSize(11);
         lblHelp.setFillColor({60, 90, 145});
         sf::FloatRect rh = lblHelp.getLocalBounds();

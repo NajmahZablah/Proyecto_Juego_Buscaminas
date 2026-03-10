@@ -7,6 +7,9 @@
  *  3) Instanciar todas las pantallas
  *  4) Ejecutar el game loop principal
  *  5) Gestionar las transiciones entre pantallas
+ *
+ *  CAMBIOS PENDIENTES
+ *  1) Ampliar la ventana
 */
 
 #include <SFML/Graphics.hpp>
