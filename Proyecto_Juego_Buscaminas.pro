@@ -3,9 +3,9 @@ CONFIG += console c++17
 CONFIG -= app_bundle
 CONFIG -= qt
 
-INCLUDEPATH += C:/SFML-2.6.2/include
+INCLUDEPATH += C:/Aplicaciones/SFML/SFML-2.6.2/include
 
-LIBS += -LC:/SFML-2.6.2/lib \
+LIBS += -LC:/Aplicaciones/SFML/SFML-2.6.2/lib \
         -lsfml-graphics \
         -lsfml-window   \
         -lsfml-system   \
