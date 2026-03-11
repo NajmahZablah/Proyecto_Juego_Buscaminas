@@ -2,9 +2,10 @@
 #include <SFML/Graphics.hpp>
 #include <string>
 
-//  ScreenManager.h
-//  Define los estados posibles del juego y los datos
-//  del jugador que se comparten entre todas las pantallas.
+/*ScreenManager.
+ * Define los estados posibles del juego y los datos
+ * del jugador que se comparten entre todas las pantallas.
+*/
 
 // Estados de pantalla
 // main.cpp usa este enum para saber qué pantalla dibujar.

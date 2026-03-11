@@ -5,10 +5,11 @@
 #include "UIHelpers.h"
 
 
-//  SplashScreen.h
-//  Pantalla de presentación animada al iniciar el juego.
-//  Duración: 3 segundos: pasa automáticamente a MAIN_MENU.
-//  Click o cualquier tecla la salta.
+/*SplashScreen.h
+ * Pantalla de presentación animada al iniciar el juego.
+ * Duración: 3 segundos: pasa automáticamente a MAIN_MENU.
+ * Click o cualquier tecla la salta.
+*/
 class SplashScreen {
 public:
 

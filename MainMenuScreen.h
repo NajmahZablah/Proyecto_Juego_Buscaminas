@@ -6,14 +6,13 @@
 #include "ScreenManager.h"
 #include "UIHelpers.h"
 
-//  MainMenuScreen.h
-//  Menú principal. Muestra:
-//    - Título animado
-//    - Nombre del jugador si hay sesión activa
-//    - Botones: JUGAR, PUNTAJES, SALIR
-//    - Pelotitas voladoras estetics
-//    - la clase en la que estamos (la puedan quitar si quierne tho >-<
-
+/*MainMenuScreen.h
+ * Menú principal. Muestra:
+ * - Título animado
+ * - Nombre del jugador si hay sesión activa
+ * - Botones: JUGAR, PUNTAJES, SALIR
+ * - Pelotitas voladoras estetics
+*/
 struct Particle {
     sf::CircleShape shape;
     sf::Vector2f    vel;
@@ -32,15 +31,17 @@ public:
         const float H  = static_cast<float>(m_win.getSize().y);
         const float cx = W / 2.f;
 
-        // Título "BUSCAMINAS"
         m_title.setFont(m_font);
+
+        // Título "BUSCAMINAS"
         m_title.setString("BUSCAMINAS");
-        m_title.setCharacterSize(62);
+        m_title.setCharacterSize(66);
         m_title.setStyle(sf::Text::Bold);
+        m_title.setLetterSpacing(2.8f);     // << NUEVO: espaciado entre letras
         m_title.setFillColor(sf::Color::White);
         centerText(m_title, cx, 108.f);
 
-        // Nombre del jugador activo
+        // Info jugador (solo se muestra si hay sesión activa)
         m_userInfo.setFont(m_font);
         m_userInfo.setCharacterSize(18);
         m_userInfo.setFillColor({130, 195, 255});
@@ -54,7 +55,7 @@ public:
 
         // Créditos
         m_credits.setFont(m_font);
-        m_credits.setString("Programacion 3");
+        m_credits.setString("Nadiesda | Najmah | Alex");
         m_credits.setCharacterSize(13);
         m_credits.setFillColor({70, 110, 170});
         centerText(m_credits, cx, H - 22.f);
@@ -114,7 +115,7 @@ public:
         sep.setFillColor({55, 100, 200, 100});
         m_win.draw(sep);
 
-        // Info jugador
+        // Info jugador (solo visible si hay sesión)
         m_win.draw(m_userInfo);
 
         // Botones
@@ -127,11 +128,10 @@ public:
     }
 
 private:
-
     void updateUserInfo() {
         std::string info = m_player.loggedIn
                                ? "Jugador: " + m_player.username
-                               : "Sin sesion iniciada";
+                               : "";   // cadena vacía si no hay sesión
         m_userInfo.setString(info);
         centerText(m_userInfo,
                    static_cast<float>(m_win.getSize().x) / 2.f, 168.f);
@@ -181,6 +181,7 @@ private:
     const sf::Font&   m_font;
     PlayerData&       m_player;
 
+    sf::Font   m_titleFont; //fuente exclusiva del título
     sf::Text   m_title, m_userInfo, m_credits;
     Button     m_btnPlay, m_btnScores, m_btnExit;
     std::vector<Particle> m_particles;

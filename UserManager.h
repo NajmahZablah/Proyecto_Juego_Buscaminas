@@ -6,20 +6,19 @@
 #include <algorithm>
 #include "ScreenManager.h"
 
-//  UserManager.h
-//  Maneja toda la persistencia de usuarios con fstream.
-//
-//  ARCHIVO: users.dat  (se crea automáticamente)
-//  FORMATO: username,password,bestEasy,bestMed,bestHard
-//
-//  FUNCIONES:
-//    userExists(): true si el nombre ya está registrado
-//    registerUser(): crea usuario nuevo con contraseña
-//    loginUser(): verifica usuario + contraseña
-//    loadUser(): carga datos de un usuario por nombre
-//    deleteUser(): elimina usuario si contraseña correcta
-//    saveScore(): guarda el mejor puntaje del jugador
-//    loadAll(): devuelve todos los usuarios (ranking)
+/*UserManager.h
+ *  Maneja toda la persistencia de usuarios con fstrea
+ *  ARCHIVO: users.dat  (se crea automáticamente)
+ *  FORMATO: username,password,bestEasy,bestMed,bestHard
+ *  FUNCIONES:
+ *  userExists(): true si el nombre ya está registrado
+ *  registerUser(): crea usuario nuevo con contraseña
+ *  loginUser(): verifica usuario + contraseña
+ *  loadUser(): carga datos de un usuario por nombre
+ *  deleteUser(): elimina usuario si contraseña correcta
+ *  saveScore(): guarda el mejor puntaje del jugador
+ *  loadAll(): devuelve todos los usuarios (ranking)
+*/
 
 class UserManager {
 public:

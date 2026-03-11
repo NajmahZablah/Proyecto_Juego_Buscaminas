@@ -4,23 +4,20 @@
 #include "ScreenManager.h"
 #include "UIHelpers.h"
 
-//  LevelSelectScreen.h
-//  Pantalla de selección de nivel. Muestra tres opciones:
-//
-//    Nivel 1 – Principiante:  8×8   con 10 minas
-//    Nivel 2 – Intermedio: 16×16  con 40 minas
-//    Nivel 3 – Experto: 16×30  con 99 minas
-//
-//  Al elegir un nivel, guarda la configuración en 'outLevel'
-//  y navega a GAME para que el tablero use esos parámetros.
-//
-//  CÓMO CONECTAR EL TABLERO (para el compañero del juego):
-//    Recibe LevelConfig& outLevel con:
-//      outLevel.rows: filas del tablero
-//      outLevel.cols: columnas del tablero
-//      outLevel.mines: cantidad de minas
-//    Úsalos en tu clase Tablero o en new para reservar memoria.
-
+/* LevelSelectScreen.h
+ * Pantalla de selección de nivel. Muestra tres opciones:
+ * Nivel 1 – Principiante:  8×8   con 10 minas
+ * Nivel 2 – Intermedio: 16×16  con 40 minas
+ * Nivel 3 – Experto: 16×30  con 99 minas
+ * Al elegir un nivel, guarda la configuración en 'outLevel'
+ * y navega a GAME para que el tablero use esos parámetros.
+ * CÓMO CONECTAR EL TABLERO (para el compañero del juego):
+ * Recibe LevelConfig& outLevel con:
+ * outLevel.rows: filas del tablero
+ * outLevel.cols: columnas del tablero
+ * outLevel.mines: cantidad de minas
+ * Úsalos en tu clase Tablero o en new para reservar memoria.
+*/
 
 // Configuración de cada nivel
 // Esta struct es la que recibe el módulo del tablero.
