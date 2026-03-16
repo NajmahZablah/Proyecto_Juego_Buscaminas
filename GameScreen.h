@@ -71,7 +71,7 @@ public:
         // Teclado
         if (e.type == sf::Event::KeyReleased) {
             if (e.key.code == sf::Keyboard::Escape) {
-                return ::GameScreen::MAIN_MENU;
+                return ::GameScreen::LEVEL_SELECT;
             }
 
             if (e.key.code == sf::Keyboard::R) {
@@ -99,7 +99,7 @@ public:
                 iniciarPartida();
             }
             if (m_btnMenu.isClicked(e)) {
-                return ::GameScreen::MAIN_MENU;
+                return ::GameScreen::LEVEL_SELECT;
             }
         }
 
@@ -170,8 +170,8 @@ private:
         float minW = m_tablero->getCols() * MIN_CELDA + MARGEN * 2;
         float minH = m_tablero->getFilas() * MIN_CELDA + HUD_H + MARGEN * 2;
 
-        unsigned int newW = static_cast<unsigned int>(std::max(minW, 600.f));
-        unsigned int newH = static_cast<unsigned int>(std::max(minH, 680.f));
+        unsigned int newW = static_cast<unsigned int>(std::max(minW, 1200.f));
+        unsigned int newH = static_cast<unsigned int>(std::max(minH, 700.f));
 
         if (m_win.getSize().x != newW || m_win.getSize().y != newH) {
             m_win.setSize({newW, newH});

@@ -42,7 +42,7 @@ int main() {
 
     // Ventana principal
     sf::RenderWindow window(
-        sf::VideoMode(600, 680),
+        sf::VideoMode(1200, 700), // 1200 x 700
         "Buscaminas",
         sf::Style::Close | sf::Style::Titlebar);
     window.setFramerateLimit(60);
