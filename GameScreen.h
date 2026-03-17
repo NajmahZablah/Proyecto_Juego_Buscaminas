@@ -8,6 +8,7 @@
 #include "UserManager.h"
 #include "LevelSelectScreen.h"
 #include "Tablero.h"
+#include "ScoreScreen.h"
 
 // GameScreen.h
 // Pantalla principal del juego Buscaminas
@@ -52,15 +53,14 @@ enum class EstadoJuego {
 };
 
 class PantallaJuego {
-public:
+    public:
+        PantallaJuego(sf::RenderWindow& win, const sf::Font& font, PlayerData& player, LevelConfig& level, ScoreScreen& score)
+            : m_win(win), m_font(font), m_player(player), m_levelCfg(level), m_scoreScreen(score) {}
 
-    PantallaJuego(sf::RenderWindow& win, const sf::Font& font, PlayerData& player, LevelConfig& level)
-        : m_win(win), m_font(font), m_player(player), m_levelCfg(level), m_tablero(nullptr) {}
-
-    ~PantallaJuego() {
-        delete m_tablero;
-        m_tablero = nullptr;
-    }
+        ~PantallaJuego() {
+            delete m_tablero;
+            m_tablero = nullptr;
+        }
 
     void onEnter() {
         iniciarPartida();
@@ -134,7 +134,13 @@ public:
             dibujarOverlay();
         }
     }
+    bool levelFinished() const {
+        return m_estado != EstadoJuego::JUGANDO;
+    }
 
+    float getElapsedTime() const {
+        return m_tiempoSegundos;
+    }
 private:
 
     // Iniciar o reiniciar partida
@@ -225,7 +231,18 @@ private:
         } else if (m_tablero->verificarVictoria()) {
             m_estado = EstadoJuego::GANADO;
             m_timerActivo = false;
+
             guardarPuntaje();
+
+            // SOLO SI GANA
+            if (m_estado == EstadoJuego::GANADO) {
+
+                guardarPuntaje();
+
+                if (m_player.loggedIn) {
+                    m_scoreScreen.addScore(m_player.username, m_tiempoSegundos, m_levelCfg.name);
+                }
+            }
         }
     }
 
@@ -510,12 +527,17 @@ private:
         m_btnMenu.normalColor = {20, 20, 48, 215};
         m_btnMenu.hoverColor  = {48, 48, 108, 235};
     }
+    bool playerWon() const {
+        return m_estado == EstadoJuego::GANADO;
+    }
 
     // Variables miembro
     sf::RenderWindow& m_win;
     const sf::Font& m_font;
     PlayerData& m_player;
     LevelConfig& m_levelCfg;
+
+    ScoreScreen& m_scoreScreen;
 
     Tablero* m_tablero = nullptr;
     EstadoJuego m_estado = EstadoJuego::JUGANDO;

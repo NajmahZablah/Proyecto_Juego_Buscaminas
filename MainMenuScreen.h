@@ -67,7 +67,7 @@ public:
 
     GameScreen handleEvent(const sf::Event& e) {
         if (m_btnPlay.isClicked(e))   return GameScreen::USER_AUTH;
-        if (m_btnScores.isClicked(e)) return GameScreen::LEVEL_SELECT;
+        if (m_btnScores.isClicked(e)) return GameScreen::SCORES;
         if (m_btnExit.isClicked(e))   m_win.close();
         return GameScreen::MAIN_MENU;
     }

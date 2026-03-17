@@ -3,9 +3,9 @@ CONFIG += console c++17
 CONFIG -= app_bundle
 CONFIG -= qt
 
-INCLUDEPATH += C:\SFML-2.6.2/include
+INCLUDEPATH += C:\SFML\SFML-2.6.2/include
 
-LIBS += -LC:\SFML-2.6.2/lib \
+LIBS += -LC:\SFML\SFML-2.6.2/lib \
         -lsfml-graphics \
         -lsfml-window   \
         -lsfml-system   \
@@ -13,6 +13,8 @@ LIBS += -LC:\SFML-2.6.2/lib \
 
 SOURCES += main.cpp \
     Celda.cpp \
+    ScoreManager.cpp \
+    ScoreScreen.cpp \
     Tablero.cpp
 
 HEADERS += \
@@ -20,6 +22,8 @@ HEADERS += \
     GameScreen.h \
     LevelSelectScreen.h \
     MainMenuScreen.h \
+    ScoreManager.h \
+    ScoreScreen.h \
     ScreenManager.h \
     SplashScreen.h \
     Tablero.h \

@@ -14,7 +14,8 @@ enum class GameScreen {
     MAIN_MENU,     // menú principal
     USER_AUTH,     // login / registro de usuario
     LEVEL_SELECT,  // selección de nivel
-    GAME           // tablero de Buscaminas
+    GAME,          // tablero de Buscaminas
+    SCORES   // maneja puntuaciones
 };
 
 //  Datos del jugador activo
