@@ -10,32 +10,24 @@
 #include "Tablero.h"
 #include "ScoreScreen.h"
 
-// GameScreen.h
-// Pantalla principal del juego Buscaminas
-
-/* Integración con el sistema:
- * Recibe LevelConfig& para saber filas/cols/minas
- * Recibe PlayerData& para guardar puntaje al ganar
- * Devuelve GameScreen::MAIN_MENU al terminar la partida
+/*  GameScreen.h
+ *  Pantalla principal del juego
  *
- * Controles:
- * Click izquierdo -> revelar celda
- * Click derecho -> poner/quitar bandera
- * R -> reiniciar partida (mismo nivel)
- * ESC -> vuelve al menú principal
+ *  CONTROLES:
+ *  Click izquierdo - revelar celda
+ *  Click derecho - poner/quitar bandera
+ *  R - reiniciar partida (mismo nivel)
+ *  ESC - vuelve a selección de nivel
  *
- * Estados del juego:
- * Jugando -> partida activa
- * Ganado -> todas las celdas seguras reveladas
- * Perdido -> el jugador pisó una mina
- *
- * CAMBIOS PENDIENTES:
- * 1) Mostrar "VICTORIA!" si ganó el jugador
+ *  MODO COMPETITIVO:
+ *  Al ganar avanza automáticamente al siguiente nivel
+ *  Si pierde, reinicia la sesión competitiva desde el nivel 1
+ *  Al completar los 3 niveles guarda la suma de los tiempos
 */
 
-// Colores estándar de los números 1-8
-static const sf::Color NUM_COLORS[9] = {
-    {0, 0, 0 },
+// Colores estándar de los números 1–8
+static const sf::Color COLORES_NUMEROS[9] = {
+    {0, 0, 0},
     {30, 100, 255}, // 1) azul
     {30, 160, 30}, // 2) verde
     {220, 40, 40}, // 3) rojo
@@ -53,53 +45,79 @@ enum class EstadoJuego {
 };
 
 class PantallaJuego {
-    public:
-        PantallaJuego(sf::RenderWindow& win, const sf::Font& font, PlayerData& player, LevelConfig& level, ScoreScreen& score)
-            : m_win(win), m_font(font), m_player(player), m_levelCfg(level), m_scoreScreen(score) {}
+public:
 
-        ~PantallaJuego() {
-            delete m_tablero;
-            m_tablero = nullptr;
-        }
+    PantallaJuego(sf::RenderWindow& ventana, const sf::Font& fuente, PlayerData& jugador, LevelConfig& nivel,
+                  ScoreScreen& pantallaPuntajes)
+        : m_ventana(ventana), m_fuente(fuente), m_jugador(jugador), m_configNivel(nivel),
+        m_pantallaPuntajes(pantallaPuntajes) {}
+
+    ~PantallaJuego() {
+        delete m_tablero;
+        m_tablero = nullptr;
+    }
 
     void onEnter() {
         iniciarPartida();
     }
 
-    ::GameScreen handleEvent(const sf::Event& e) {
+    ::GameScreen handleEvent(const sf::Event& evento) {
 
         // Teclado
-        if (e.type == sf::Event::KeyReleased) {
-            if (e.key.code == sf::Keyboard::Escape) {
+        if (evento.type == sf::Event::KeyReleased) {
+            if (evento.key.code == sf::Keyboard::Escape) {
+                if (m_jugador.modoJuego == ModoJuego::COMPETITIVO) {
+                    reiniciarSesionCompetitiva();
+                }
                 return ::GameScreen::LEVEL_SELECT;
             }
 
-            if (e.key.code == sf::Keyboard::R) {
+            if (evento.key.code == sf::Keyboard::R) {
+                if (m_jugador.modoJuego == ModoJuego::COMPETITIVO) {
+                    reiniciarSesionCompetitiva();
+                }
                 iniciarPartida();
             }
         }
 
-        // Mouse sobre el tablero (solo si se esta jugando)
-        if (e.type == sf::Event::MouseButtonReleased &&
-            m_estado == EstadoJuego::JUGANDO) {
+        // Clicks sobre el tablero (si se está jugando)
+        if (evento.type == sf::Event::MouseButtonReleased && m_estado == EstadoJuego::JUGANDO) {
 
-            int fila, col;
-            if (pixelACelda(e.mouseButton.x, e.mouseButton.y, fila, col)) {
-                if (e.mouseButton.button == sf::Mouse::Left) {
+            int fila = 0;
+            int col  = 0;
+
+            if (pixelACelda(evento.mouseButton.x, evento.mouseButton.y, fila, col)) {
+                if (evento.mouseButton.button == sf::Mouse::Left) {
                     procesarClickIzquierdo(fila, col);
-                } else if (e.mouseButton.button == sf::Mouse::Right) {
+                } else if (evento.mouseButton.button == sf::Mouse::Right) {
                     procesarClickDerecho(fila, col);
                 }
             }
         }
 
-        // Botones del overlay (solo si la partida termino)
+        // Botones del overlay (si la partida terminó)
         if (m_estado != EstadoJuego::JUGANDO) {
-            if (m_btnReiniciar.isClicked(e)) {
+            if (m_btnReiniciar.isClicked(evento)) {
+                if (m_jugador.modoJuego == ModoJuego::COMPETITIVO) {
+                    reiniciarSesionCompetitiva();
+                }
                 iniciarPartida();
             }
-            if (m_btnMenu.isClicked(e)) {
+
+            if (m_btnMenu.isClicked(evento)) {
+                if (m_jugador.modoJuego == ModoJuego::COMPETITIVO) {
+                    reiniciarSesionCompetitiva();
+                }
                 return ::GameScreen::LEVEL_SELECT;
+            }
+
+            // Botón siguiente nivel (solo competitivo, al ganar)
+            if (m_estado == EstadoJuego::GANADO && m_jugador.modoJuego == ModoJuego::COMPETITIVO &&
+                m_jugador.nivelCompetitivoActual < 3) {
+
+                if (m_btnSiguiente.isClicked(evento)) {
+                    return ::GameScreen::LEVEL_SELECT;
+                }
             }
         }
 
@@ -112,20 +130,25 @@ class PantallaJuego {
         }
 
         if (m_estado != EstadoJuego::JUGANDO) {
-            m_btnReiniciar.update(m_win);
-            m_btnMenu.update(m_win);
+            m_btnReiniciar.update(m_ventana);
+            m_btnMenu.update(m_ventana);
+
+            if (m_estado == EstadoJuego::GANADO && m_jugador.modoJuego == ModoJuego::COMPETITIVO &&
+                m_jugador.nivelCompetitivoActual < 3) {
+                m_btnSiguiente.update(m_ventana);
+            }
         }
 
-        m_time += dt;
+        m_tiempo += dt;
     }
 
     void draw() {
-        const float W = static_cast<float>(m_win.getSize().x);
-        const float H = static_cast<float>(m_win.getSize().y);
+        const float anchoVentana = static_cast<float>(m_ventana.getSize().x);
+        const float altoVentana  = static_cast<float>(m_ventana.getSize().y);
 
-        m_win.draw(UI::makeGradientBackground(
-            static_cast<unsigned>(W), static_cast<unsigned>(H),
-            {4, 7, 22}, {8, 22, 62}));
+        m_ventana.draw(UI::makeGradientBackground(static_cast<unsigned>(anchoVentana),
+                                                  static_cast<unsigned>(altoVentana),
+                                                  {4, 7, 22}, {8, 22, 62}));
 
         dibujarHUD();
         dibujarTablero();
@@ -134,29 +157,31 @@ class PantallaJuego {
             dibujarOverlay();
         }
     }
-    bool levelFinished() const {
+
+    bool partidaTerminada() const {
         return m_estado != EstadoJuego::JUGANDO;
     }
 
-    float getElapsedTime() const {
+    float getTiempoTranscurrido() const {
         return m_tiempoSegundos;
     }
+
 private:
 
-    // Iniciar o reiniciar partida
+    // Inicialización
     void iniciarPartida() {
-        Nivel nivel;
+        Nivel nivelTablero;
 
-        if (m_levelCfg.mines == 10) {
-            nivel = Nivel::PRINCIPIANTE;
-        } else if (m_levelCfg.mines == 40) {
-            nivel = Nivel::INTERMEDIO;
+        if (m_configNivel.minas == 10) {
+            nivelTablero = Nivel::PRINCIPIANTE;
+        } else if (m_configNivel.minas == 40) {
+            nivelTablero = Nivel::INTERMEDIO;
         } else {
-            nivel = Nivel::EXPERTO;
+            nivelTablero = Nivel::EXPERTO;
         }
 
         delete m_tablero;
-        m_tablero = new Tablero(nivel);
+        m_tablero = new Tablero(nivelTablero);
         m_estado = EstadoJuego::JUGANDO;
         m_tiempoSegundos = 0.f;
         m_timerActivo = false;
@@ -164,44 +189,48 @@ private:
 
         ajustarVentana();
         calcularTamanioCelda();
-        setupBotones();
+        configurarBotones();
     }
 
-    // Redimensiona la ventana si el nivel lo requiere
+    void reiniciarSesionCompetitiva() {
+        m_jugador.nivelCompetitivoActual = 0;
+        m_jugador.tiempoAcumulado = 0.f;
+    }
+
+    // Ventana y geometría
+
     void ajustarVentana() {
-        const float HUD_H = 68.f;
+        const float HUD_ALTO = 68.f;
         const float MARGEN = 16.f;
-        const float MIN_CELDA = 22.f;
+        const float CELDA_MIN = 22.f;
 
-        float minW = m_tablero->getCols() * MIN_CELDA + MARGEN * 2;
-        float minH = m_tablero->getFilas() * MIN_CELDA + HUD_H + MARGEN * 2;
+        float anchoMinimo = m_tablero->getCols()  * CELDA_MIN + MARGEN * 2;
+        float altoMinimo = m_tablero->getFilas() * CELDA_MIN + HUD_ALTO + MARGEN * 2;
 
-        unsigned int newW = static_cast<unsigned int>(std::max(minW, 1200.f));
-        unsigned int newH = static_cast<unsigned int>(std::max(minH, 700.f));
+        unsigned int nuevoAncho = static_cast<unsigned int>(std::max(anchoMinimo, 1200.f));
+        unsigned int nuevoAlto = static_cast<unsigned int>(std::max(altoMinimo, 700.f));
 
-        if (m_win.getSize().x != newW || m_win.getSize().y != newH) {
-            m_win.setSize({newW, newH});
+        if (m_ventana.getSize().x != nuevoAncho || m_ventana.getSize().y != nuevoAlto) {
+            m_ventana.setSize({ nuevoAncho, nuevoAlto });
         }
     }
 
-    // Calcula el tamaño de celda y centra el tablero en la ventana
     void calcularTamanioCelda() {
-        const float W = static_cast<float>(m_win.getSize().x);
-        const float H = static_cast<float>(m_win.getSize().y);
+        const float anchoVentana = static_cast<float>(m_ventana.getSize().x);
+        const float altoVentana = static_cast<float>(m_ventana.getSize().y);
         const float MARGEN = 16.f;
-        const float HUD_H = 68.f;
+        const float HUD_ALTO = 68.f;
 
-        float celdaW = (W - MARGEN * 2) / m_tablero->getCols();
-        float celdaH = (H - HUD_H - MARGEN * 2) / m_tablero->getFilas();
-        m_celdaSize  = std::min(celdaW, celdaH);
+        float celdaPorAncho = (anchoVentana - MARGEN * 2) / m_tablero->getCols();
+        float celdaPorAlto = (altoVentana - HUD_ALTO - MARGEN * 2) / m_tablero->getFilas();
+        m_tamanioCelda = std::min(celdaPorAncho, celdaPorAlto);
 
-        float totalW = m_celdaSize * m_tablero->getCols();
-        float totalH = m_celdaSize * m_tablero->getFilas();
-        m_offsetX = (W - totalW) / 2.f;
-        m_offsetY = HUD_H + (H - HUD_H - totalH) / 2.f;
+        float tableroAncho = m_tamanioCelda * m_tablero->getCols();
+        float tableroAlto = m_tamanioCelda * m_tablero->getFilas();
+        m_offsetX = (anchoVentana - tableroAncho) / 2.f;
+        m_offsetY = HUD_ALTO + (altoVentana - HUD_ALTO - tableroAlto) / 2.f;
     }
 
-    // Convierte pixel de pantalla a fila y columna del tablero
     bool pixelACelda(int px, int py, int& fila, int& col) const {
         float fx = static_cast<float>(px) - m_offsetX;
         float fy = static_cast<float>(py) - m_offsetY;
@@ -210,8 +239,8 @@ private:
             return false;
         }
 
-        col = static_cast<int>(fx / m_celdaSize);
-        fila = static_cast<int>(fy / m_celdaSize);
+        col = static_cast<int>(fx / m_tamanioCelda);
+        fila = static_cast<int>(fy / m_tamanioCelda);
 
         return !m_tablero->fueraDeRango(fila, col);
     }
@@ -222,27 +251,22 @@ private:
             m_timerActivo = true;
         }
 
-        bool esMina = m_tablero->revelarCelda(fila, col);
+        bool pisoMina = m_tablero->revelarCelda(fila, col);
 
-        if (esMina) {
+        if (pisoMina) {
             m_estado = EstadoJuego::PERDIDO;
             m_minaExploto = {fila, col};
             m_timerActivo = false;
+
+            if (m_jugador.modoJuego == ModoJuego::COMPETITIVO) {
+                reiniciarSesionCompetitiva();
+            }
+
         } else if (m_tablero->verificarVictoria()) {
             m_estado = EstadoJuego::GANADO;
             m_timerActivo = false;
 
-            guardarPuntaje();
-
-            // SOLO SI GANA
-            if (m_estado == EstadoJuego::GANADO) {
-
-                guardarPuntaje();
-
-                if (m_player.loggedIn) {
-                    m_scoreScreen.addScore(m_player.username, m_tiempoSegundos, m_levelCfg.name);
-                }
-            }
+            procesarVictoria();
         }
     }
 
@@ -253,206 +277,235 @@ private:
         m_tablero->toggleBandera(fila, col);
     }
 
-    // Guarda el puntaje si el jugador tiene sesion activa
-    void guardarPuntaje() {
-        if (!m_player.loggedIn) {
+    // Lógica de victoria
+    void procesarVictoria() {
+        if (m_jugador.modoJuego == ModoJuego::COMPETITIVO) {
+            procesarVictoriaCompetitiva();
+        } else {
+            procesarVictoriaLibre();
+        }
+    }
+
+    void procesarVictoriaLibre() {
+        if (!m_jugador.sesionActiva) {
             return;
         }
 
-        int t = static_cast<int>(m_tiempoSegundos);
+        int tiempoEntero = static_cast<int>(m_tiempoSegundos);
 
-        if (m_levelCfg.mines == 10) {
-            m_player.bestScoreEasy = t;
-        } else if (m_levelCfg.mines == 40) {
-            m_player.bestScoreMed = t;
+        if (m_configNivel.minas == 10) {
+            if (m_jugador.mejorTiempoFacil == 0 || tiempoEntero < m_jugador.mejorTiempoFacil) {
+                m_jugador.mejorTiempoFacil = tiempoEntero;
+            }
+        } else if (m_configNivel.minas == 40) {
+            if (m_jugador.mejorTiempoMedio == 0 || tiempoEntero < m_jugador.mejorTiempoMedio) {
+                m_jugador.mejorTiempoMedio = tiempoEntero;
+            }
         } else {
-            m_player.bestScoreHard = t;
+            if (m_jugador.mejorTiempoDificil == 0 || tiempoEntero < m_jugador.mejorTiempoDificil) {
+                m_jugador.mejorTiempoDificil = tiempoEntero;
+            }
         }
 
-        UserManager::saveScore(m_player);
+        UserManager::guardarPuntaje(m_jugador);
+        m_pantallaPuntajes.addScore(m_jugador.nombre, m_tiempoSegundos, m_configNivel.nombre);
     }
 
-    // HUD: nivel, timer, minas restantes, teclas de ayuda
+    void procesarVictoriaCompetitiva() {
+        m_jugador.tiempoAcumulado += m_tiempoSegundos;
+        m_jugador.nivelCompetitivoActual++;
+
+        if (m_jugador.nivelCompetitivoActual >= 3) {
+            int tiempoTotal = static_cast<int>(m_jugador.tiempoAcumulado);
+
+            if (m_jugador.sesionActiva) {
+                if (m_jugador.mejorTiempoCompetitivo == 0 || tiempoTotal < m_jugador.mejorTiempoCompetitivo) {
+                    m_jugador.mejorTiempoCompetitivo = tiempoTotal;
+                }
+
+                UserManager::guardarPuntaje(m_jugador);
+                m_pantallaPuntajes.addScore(m_jugador.nombre, m_jugador.tiempoAcumulado, "Competitivo");
+            }
+        }
+    }
+
+    // HUD
     void dibujarHUD() {
-        const float W = static_cast<float>(m_win.getSize().x);
-        const float cx = W / 2.f;
+        const float anchoVentana = static_cast<float>(m_ventana.getSize().x);
+        const float centroX = anchoVentana / 2.f;
 
         // Fondo del HUD
-        sf::RectangleShape hudBg({W, 62.f});
-        hudBg.setFillColor({8, 15, 45, 230});
-        hudBg.setPosition(0.f, 0.f);
-        m_win.draw(hudBg);
+        sf::RectangleShape fondoHUD({ anchoVentana, 62.f });
+        fondoHUD.setFillColor({8, 15, 45, 230});
+        fondoHUD.setPosition(0.f, 0.f);
+        m_ventana.draw(fondoHUD);
 
-        // Separador inferior
-        sf::RectangleShape sep({W, 1.f});
-        sep.setPosition(0.f, 62.f);
-        sep.setFillColor({40, 80, 160, 120});
-        m_win.draw(sep);
+        // Línea separadora inferior
+        sf::RectangleShape separador({ anchoVentana, 1.f });
+        separador.setPosition(0.f, 62.f);
+        separador.setFillColor({40, 80, 160, 120});
+        m_ventana.draw(separador);
 
-        // Nombre del nivel (centrado)
-        sf::Text lblNivel;
-        lblNivel.setFont(m_font);
-        lblNivel.setString(m_levelCfg.name);
-        lblNivel.setCharacterSize(17);
-        lblNivel.setFillColor({130, 195, 255});
-        sf::FloatRect r = lblNivel.getLocalBounds();
-        lblNivel.setOrigin(r.left + r.width / 2.f, r.top + r.height / 2.f);
-        lblNivel.setPosition(cx, 16.f);
-        m_win.draw(lblNivel);
+        // Nombre del nivel con indicador competitivo
+        std::string etiquetaNivel = m_configNivel.nombre;
+        if (m_jugador.modoJuego == ModoJuego::COMPETITIVO) {
+            etiquetaNivel += "  [COMPETITIVO - Nivel " + std::to_string(m_jugador.nivelCompetitivoActual + 1) + "/3]";
+        }
 
-        // Timer (derecha)
-        int seg = static_cast<int>(m_tiempoSegundos);
-        char buf[16];
-        std::snprintf(buf, sizeof(buf), "%02d:%02d", seg / 60, seg % 60);
+        sf::Text textoNivel;
+        textoNivel.setFont(m_fuente);
+        textoNivel.setString(etiquetaNivel);
+        textoNivel.setCharacterSize(17);
+        textoNivel.setFillColor({130, 195, 255});
+        centrarTextoEnPunto(textoNivel, centroX, 16.f);
+        m_ventana.draw(textoNivel);
 
-        sf::Text lblTimer;
-        lblTimer.setFont(m_font);
-        lblTimer.setString(std::string("T: ") + buf);
-        lblTimer.setCharacterSize(19);
-        lblTimer.setFillColor({255, 210, 50});
-        sf::FloatRect rt = lblTimer.getLocalBounds();
-        lblTimer.setOrigin(rt.left + rt.width, rt.top);
-        lblTimer.setPosition(W - 10.f, 8.f);
-        m_win.draw(lblTimer);
+        // Timer (lado derecho)
+        int segundos = static_cast<int>(m_tiempoSegundos);
+        char bufferTiempo[16];
+        std::snprintf(bufferTiempo, sizeof(bufferTiempo), "%02d:%02d", segundos / 60, segundos % 60);
 
-        // Contador de minas (izquierda)
-        int restantes = m_tablero->getTotalMinas() - m_tablero->getBanderasColocadas();
+        sf::Text textoTimer;
+        textoTimer.setFont(m_fuente);
+        textoTimer.setString(std::string("T: ") + bufferTiempo);
+        textoTimer.setCharacterSize(19);
+        textoTimer.setFillColor({255, 210, 50});
+        sf::FloatRect limitesTimer = textoTimer.getLocalBounds();
+        textoTimer.setOrigin(limitesTimer.left + limitesTimer.width, limitesTimer.top);
+        textoTimer.setPosition(anchoVentana - 10.f, 8.f);
+        m_ventana.draw(textoTimer);
 
-        sf::Text lblMinas;
-        lblMinas.setFont(m_font);
-        lblMinas.setString("M: " + std::to_string(restantes));
-        lblMinas.setCharacterSize(19);
-        lblMinas.setFillColor({255, 80, 80});
-        lblMinas.setPosition(10.f, 8.f);
-        m_win.draw(lblMinas);
+        // Contador de minas (lado izquierdo)
+        int minasRestantes = m_tablero->getTotalMinas() - m_tablero->getBanderasColocadas();
 
-        // Teclas de ayuda — parte baja del HUD
-        sf::Text lblHelp;
-        lblHelp.setFont(m_font);
-        lblHelp.setString("R: reiniciar | ESC: menu");
-        lblHelp.setCharacterSize(11);
-        lblHelp.setFillColor({60, 90, 145});
-        sf::FloatRect rh = lblHelp.getLocalBounds();
-        lblHelp.setOrigin(rh.left + rh.width / 2.f, rh.top);
-        lblHelp.setPosition(cx, 42.f);
-        m_win.draw(lblHelp);
+        sf::Text textoMinas;
+        textoMinas.setFont(m_fuente);
+        textoMinas.setString("M: " + std::to_string(minasRestantes));
+        textoMinas.setCharacterSize(19);
+        textoMinas.setFillColor({ 255, 80, 80 });
+        textoMinas.setPosition(10.f, 8.f);
+        m_ventana.draw(textoMinas);
+
+        // Tiempo acumulado en competitivo
+        if (m_jugador.modoJuego == ModoJuego::COMPETITIVO) {
+            int acumulado = static_cast<int>(m_jugador.tiempoAcumulado);
+            sf::Text textoAcumulado;
+            textoAcumulado.setFont(m_fuente);
+            textoAcumulado.setString("Acum: " + std::to_string(acumulado) + "s");
+            textoAcumulado.setCharacterSize(13);
+            textoAcumulado.setFillColor({255, 165, 30});
+            textoAcumulado.setPosition(10.f, 32.f);
+            m_ventana.draw(textoAcumulado);
+        }
+
+        // Teclas de ayuda
+        sf::Text textoAyuda;
+        textoAyuda.setFont(m_fuente);
+        textoAyuda.setString("R: reiniciar | ESC: menu");
+        textoAyuda.setCharacterSize(11);
+        textoAyuda.setFillColor({ 60, 90, 145 });
+        centrarTextoEnPunto(textoAyuda, centroX, 42.f);
+        m_ventana.draw(textoAyuda);
     }
 
-    // Dibuja todas las celdas del tablero
+    // Dibujo del tablero
     void dibujarTablero() {
-        const float GAP      = std::max(1.f, m_celdaSize * 0.06f);
-        const float CELDA_IN = m_celdaSize - GAP;
+        const float GAP = std::max(1.f, m_tamanioCelda * 0.06f);
+        const float CELDA_IN = m_tamanioCelda - GAP;
 
         for (int i = 0; i < m_tablero->getFilas(); i++) {
             for (int j = 0; j < m_tablero->getCols(); j++) {
-                Celda* c = m_tablero->getCelda(i, j);
-                float  x = m_offsetX + j * m_celdaSize;
-                float  y = m_offsetY + i * m_celdaSize;
-                dibujarCelda(c, x, y, CELDA_IN, i, j);
+                Celda* celda = m_tablero->getCelda(i, j);
+                float x = m_offsetX + j * m_tamanioCelda;
+                float y = m_offsetY + i * m_tamanioCelda;
+                dibujarCelda(celda, x, y, CELDA_IN, i, j);
             }
         }
     }
 
-    // Dibuja una sola celda según su estado
-    void dibujarCelda(Celda* c, float x, float y, float sz, int fila, int col) {
-        sf::RectangleShape rect({sz, sz});
-        rect.setPosition(x + m_celdaSize * 0.03f, y + m_celdaSize * 0.03f);
+    void dibujarCelda(Celda* celda, float x, float y, float tamanio, int fila, int col) {
+        sf::RectangleShape rect({ tamanio, tamanio });
+        rect.setPosition(x + m_tamanioCelda * 0.03f, y + m_tamanioCelda * 0.03f);
 
-        bool exploto = (fila == m_minaExploto.first && col == m_minaExploto.second);
+        bool exploto = (fila == m_minaExploto.first && col  == m_minaExploto.second);
 
-        if (!c->getEstaRevelada()) {
-            // Celda tapada
+        if (!celda->getEstaRevelada()) {
             rect.setFillColor({50, 68, 115});
             rect.setOutlineThickness(1.f);
             rect.setOutlineColor({20, 35, 70});
-            m_win.draw(rect);
+            m_ventana.draw(rect);
 
-            if (c->getTieneBandera()) {
-                dibujarTexto("F", x, y, sz, {240, 70, 70});
+            if (celda->getTieneBandera()) {
+                dibujarTextoCelda("X", x, y, tamanio, {240, 70, 70});
             }
 
-            // En modo perdido, revelar minas sin bandera
             if (m_estado == EstadoJuego::PERDIDO &&
-                c->getEsMina() && !c->getTieneBandera()) {
+                celda->getEsMina() && !celda->getTieneBandera()) {
                 rect.setFillColor({65, 18, 18});
-                m_win.draw(rect);
-                dibujarTexto("*", x, y, sz, {210, 60, 60});
+                m_ventana.draw(rect);
+                dibujarTextoCelda("*", x, y, tamanio, {210, 60, 60});
             }
 
         } else {
-            if (c->getEsMina()) {
-                // Mina revelada
-                if (exploto) {
-                    rect.setFillColor({255, 45, 45});
-                } else {
-                    rect.setFillColor({110, 18, 18});
-                }
-                m_win.draw(rect);
-
-                if (exploto) {
-                    dibujarTexto("*", x, y, sz, sf::Color::White);
-                } else {
-                    dibujarTexto("*", x, y, sz, {200, 50, 50});
-                }
-
+            if (celda->getEsMina()) {
+                rect.setFillColor(exploto ? sf::Color{255, 45, 45} : sf::Color{110, 18, 18});
+                m_ventana.draw(rect);
+                dibujarTextoCelda("*", x, y, tamanio, exploto ? sf::Color::White : sf::Color{200, 50, 50});
             } else {
-                // Celda segura revelada
                 rect.setFillColor({15, 24, 48});
                 rect.setOutlineThickness(0.5f);
                 rect.setOutlineColor({25, 42, 80, 60});
-                m_win.draw(rect);
+                m_ventana.draw(rect);
 
-                if (c->getMinasVecinas() > 0) {
-                    dibujarTexto(std::to_string(c->getMinasVecinas()), x, y, sz, NUM_COLORS[c->getMinasVecinas()]);
+                if (celda->getMinasVecinas() > 0) {
+                    dibujarTextoCelda(std::to_string(celda->getMinasVecinas()), x, y, tamanio,
+                                      COLORES_NUMEROS[celda->getMinasVecinas()]);
                 }
             }
         }
     }
 
-    // Dibuja texto centrado dentro de una celda
-    void dibujarTexto(const std::string& str, float cx, float cy, float sz, sf::Color color) {
+    void dibujarTextoCelda(const std::string& texto, float cx, float cy, float tamanio, sf::Color color) {
         sf::Text t;
-        t.setFont(m_font);
-        t.setString(str);
+        t.setFont(m_fuente);
+        t.setString(texto);
 
-        unsigned int charSz = static_cast<unsigned int>(sz * 0.58f);
-
-        if (charSz < 7) {
-            charSz = 7;
+        unsigned int tamLetra = static_cast<unsigned int>(tamanio * 0.58f);
+        if (tamLetra < 7)  {
+            tamLetra = 7;
+        }
+        if (tamLetra > 28) {
+            tamLetra = 28;
         }
 
-        if (charSz > 28) {
-            charSz = 28;
-        }
-
-        t.setCharacterSize(charSz);
+        t.setCharacterSize(tamLetra);
         t.setStyle(sf::Text::Bold);
         t.setFillColor(color);
-        sf::FloatRect r = t.getLocalBounds();
-        t.setOrigin(r.left + r.width / 2.f, r.top + r.height / 2.f);
-        t.setPosition(cx + sz / 2.f, cy + sz / 2.f);
-        m_win.draw(t);
+        sf::FloatRect limites = t.getLocalBounds();
+        t.setOrigin(limites.left + limites.width / 2.f, limites.top + limites.height / 2.f);
+        t.setPosition(cx + tamanio / 2.f, cy + tamanio / 2.f);
+        m_ventana.draw(t);
     }
 
-    // Overlay de victoria o derrota
+    // Overlay de resultado
     void dibujarOverlay() {
-        const float W = static_cast<float>(m_win.getSize().x);
-        const float H = static_cast<float>(m_win.getSize().y);
-        const float cx = W / 2.f;
-        const float cy = H / 2.f;
+        const float anchoVentana = static_cast<float>(m_ventana.getSize().x);
+        const float altoVentana  = static_cast<float>(m_ventana.getSize().y);
+        const float centroX = anchoVentana / 2.f;
+        const float centroY = altoVentana  / 2.f;
 
         // Fondo semitransparente pulsante
-        sf::Uint8 a = static_cast<sf::Uint8>(130.f + 25.f * std::sin(m_time * 2.f));
-        sf::RectangleShape overlay({W, H});
-        overlay.setFillColor({0, 0, 0, a});
-        m_win.draw(overlay);
+        sf::Uint8 alpha = static_cast<sf::Uint8>(130.f + 25.f * std::sin(m_tiempo * 2.f));
+        sf::RectangleShape overlay({ anchoVentana, altoVentana });
+        overlay.setFillColor({0, 0, 0, alpha});
+        m_ventana.draw(overlay);
 
-        // Panel central
         bool gano = (m_estado == EstadoJuego::GANADO);
 
+        // Panel central fijo de 210×360 (igual que la versión original)
         sf::RectangleShape panel({360.f, 210.f});
         panel.setOrigin(180.f, 105.f);
-        panel.setPosition(cx, cy);
+        panel.setPosition(centroX, centroY);
 
         if (gano) {
             panel.setFillColor({8, 45, 18, 235});
@@ -462,95 +515,104 @@ private:
             panel.setOutlineColor({200, 40, 40});
         }
         panel.setOutlineThickness(2.f);
-        m_win.draw(panel);
+        m_ventana.draw(panel);
 
-        // Titulo del resultado
-        sf::Text titulo;
-        titulo.setFont(m_font);
-        titulo.setCharacterSize(44);
-        titulo.setStyle(sf::Text::Bold);
+        // Título del resultado
+        sf::Text textoTitulo;
+        textoTitulo.setFont(m_fuente);
+        textoTitulo.setCharacterSize(44);
+        textoTitulo.setStyle(sf::Text::Bold);
 
         if (gano) {
-            titulo.setString("VICTORIA!");
-            titulo.setFillColor({50, 240, 95});
+            bool completoTodos = (m_jugador.modoJuego == ModoJuego::COMPETITIVO && m_jugador.nivelCompetitivoActual >= 3);
+            textoTitulo.setString(completoTodos ? "CAMPEON!" : "VICTORIA!");
+            textoTitulo.setFillColor({50, 240, 95});
         } else {
-            titulo.setString("BOOM!");
-            titulo.setFillColor({255, 65, 45});
+            textoTitulo.setString("BOOM!");
+            textoTitulo.setFillColor({255, 65, 45});
         }
 
-        sf::FloatRect rt = titulo.getLocalBounds();
-        titulo.setOrigin(rt.left + rt.width / 2.f, rt.top + rt.height / 2.f);
-        titulo.setPosition(cx, cy - 62.f);
-        m_win.draw(titulo);
+        centrarTextoEnPunto(textoTitulo, centroX, centroY - 62.f);
+        m_ventana.draw(textoTitulo);
 
-        // Tiempo de la partida
-        int seg = static_cast<int>(m_tiempoSegundos);
+        // Tiempo de esta partida
+        int segundos = static_cast<int>(m_tiempoSegundos);
+        sf::Text textoTiempo;
+        textoTiempo.setFont(m_fuente);
+        textoTiempo.setString("Tiempo: " + std::to_string(segundos / 60) + "m " + std::to_string(segundos % 60) + "s");
+        textoTiempo.setCharacterSize(17);
+        textoTiempo.setFillColor({175, 215, 255});
+        centrarTextoEnPunto(textoTiempo, centroX, centroY - 14.f);
+        m_ventana.draw(textoTiempo);
 
-        sf::Text lblT;
-        lblT.setFont(m_font);
-        lblT.setString("Tiempo: " + std::to_string(seg / 60) + "m " + std::to_string(seg % 60) + "s");
-        lblT.setCharacterSize(17);
-        lblT.setFillColor({175, 215, 255});
-        sf::FloatRect rr = lblT.getLocalBounds();
-        lblT.setOrigin(rr.left + rr.width / 2.f, rr.top + rr.height / 2.f);
-        lblT.setPosition(cx, cy - 14.f);
-        m_win.draw(lblT);
-
-        // Nombre del jugador (si tiene sesion)
-        if (m_player.loggedIn) {
-            sf::Text lblJ;
-            lblJ.setFont(m_font);
-            lblJ.setString("Jugador: " + m_player.username);
-            lblJ.setCharacterSize(14);
-            lblJ.setFillColor({95, 155, 215});
-            sf::FloatRect rj = lblJ.getLocalBounds();
-            lblJ.setOrigin(rj.left + rj.width / 2.f, rj.top + rj.height / 2.f);
-            lblJ.setPosition(cx, cy + 10.f);
-            m_win.draw(lblJ);
+        // Nombre del jugador
+        if (m_jugador.sesionActiva) {
+            sf::Text textoJugador;
+            textoJugador.setFont(m_fuente);
+            textoJugador.setString("Jugador: " + m_jugador.nombre);
+            textoJugador.setCharacterSize(14);
+            textoJugador.setFillColor({95, 155, 215});
+            centrarTextoEnPunto(textoJugador, centroX, centroY + 10.f);
+            m_ventana.draw(textoJugador);
         }
 
-        // Botones de resultado
-        m_btnReiniciar.draw(const_cast<sf::RenderWindow&>(m_win));
-        m_btnMenu.draw(const_cast<sf::RenderWindow&>(m_win));
+        // Botones Reiniciar y Menu (siempre en la misma posición)
+        m_btnReiniciar.draw(const_cast<sf::RenderWindow&>(m_ventana));
+        m_btnMenu.draw(const_cast<sf::RenderWindow&>(m_ventana));
+
+        // Botón siguiente nivel: solo en competitivo, al ganar
+        if (gano && m_jugador.modoJuego == ModoJuego::COMPETITIVO && m_jugador.nivelCompetitivoActual < 3) {
+            m_btnSiguiente.draw(const_cast<sf::RenderWindow&>(m_ventana));
+        }
     }
 
-    // Configura los botones del overlay segun la posicion actual de la ventana
-    void setupBotones() {
-        const float cx = static_cast<float>(m_win.getSize().x) / 2.f;
-        const float cy = static_cast<float>(m_win.getSize().y) / 2.f;
+    // Configuración de botones
+    void configurarBotones() {
+        const float centroX = static_cast<float>(m_ventana.getSize().x) / 2.f;
+        const float centroY = static_cast<float>(m_ventana.getSize().y) / 2.f;
 
-        m_btnReiniciar.setup(m_font, "Reiniciar", {cx - 95.f, cy + 58.f}, {165.f, 42.f}, 16);
+        // Botones dentro del panel (panel va de centroY-105 a centroY+105)
+        m_btnReiniciar.setup(m_fuente, "Reiniciar", {centroX - 95.f, centroY + 58.f}, {165.f, 42.f}, 16);
         m_btnReiniciar.normalColor = {20, 65, 35, 215};
         m_btnReiniciar.hoverColor  = {32, 130, 60, 235};
 
-        m_btnMenu.setup(m_font, "< Menu", {cx + 95.f, cy + 58.f}, {165.f, 42.f}, 16);
+        m_btnMenu.setup(m_fuente, "< Menu", {centroX + 95.f, centroY + 58.f}, {165.f, 42.f}, 16);
         m_btnMenu.normalColor = {20, 20, 48, 215};
-        m_btnMenu.hoverColor  = {48, 48, 108, 235};
+        m_btnMenu.hoverColor = {48, 48, 108, 235};
+
+        // Botón siguiente nivel centrado, encima de Reiniciar y Menu
+        m_btnSiguiente.setup(m_fuente, "Siguiente nivel >>", {centroX, centroY + 58.f}, {250.f, 42.f}, 16);
+        m_btnSiguiente.normalColor = {10,  60,  90, 215};
+        m_btnSiguiente.hoverColor = {20, 120, 180, 235};
     }
-    bool playerWon() const {
-        return m_estado == EstadoJuego::GANADO;
+
+    // Helper de texto
+    void centrarTextoEnPunto(sf::Text& texto, float x, float y) {
+        sf::FloatRect limites = texto.getLocalBounds();
+        texto.setOrigin(limites.left + limites.width  / 2.f, limites.top  + limites.height / 2.f);
+        texto.setPosition(x, y);
     }
 
     // Variables miembro
-    sf::RenderWindow& m_win;
-    const sf::Font& m_font;
-    PlayerData& m_player;
-    LevelConfig& m_levelCfg;
-
-    ScoreScreen& m_scoreScreen;
+    sf::RenderWindow& m_ventana;
+    const sf::Font& m_fuente;
+    PlayerData& m_jugador;
+    LevelConfig& m_configNivel;
+    ScoreScreen& m_pantallaPuntajes;
 
     Tablero* m_tablero = nullptr;
     EstadoJuego m_estado = EstadoJuego::JUGANDO;
 
-    float m_celdaSize = 32.f;
+    float m_tamanioCelda = 32.f;
     float m_offsetX = 0.f;
     float m_offsetY = 0.f;
     float m_tiempoSegundos = 0.f;
-    float m_time = 0.f;
+    float m_tiempo = 0.f;
     bool m_timerActivo = false;
 
     std::pair<int,int> m_minaExploto = {-1, -1};
 
     Button m_btnReiniciar;
     Button m_btnMenu;
+    Button m_btnSiguiente;
 };

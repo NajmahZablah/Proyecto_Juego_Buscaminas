@@ -1,15 +1,5 @@
-/* main.cpp de Buscaminas
- * Punto de entrada del programa.
- *
- *  Responsabilidades:
- *  1) Crear la ventana SFML
- *  2) Cargar la fuente
- *  3) Instanciar todas las pantallas
- *  4) Ejecutar el game loop principal
- *  5) Gestionar las transiciones entre pantallas
- *
- *  CAMBIOS PENDIENTES
- *  1) Ampliar la ventana
+/*  main.cpp — Buscaminas
+ *  Punto de entrada del programa
 */
 
 #include <SFML/Graphics.hpp>
@@ -18,7 +8,6 @@
 #include <ctime>
 #include <string>
 #include "ScreenManager.h"
-#include "UserManager.h"
 #include "SplashScreen.h"
 #include "MainMenuScreen.h"
 #include "UserAuthScreen.h"
@@ -26,133 +15,211 @@
 #include "GameScreen.h"
 #include "ScoreScreen.h"
 
-void switchMusic(sf::Music& music, const std::string& newFile, std::string& currentFile) {
-    if (currentFile == newFile) return;
-    music.stop();
-    if (music.openFromFile(newFile)) {
-        music.setLoop(true);
-        music.setVolume(45.f);
-        music.play();
-        currentFile = newFile;
+// Cambia la música solo si es diferente a la que ya suena
+void cambiarMusica(sf::Music& musica, const std::string& archivoNuevo, std::string& archivoActual) {
+    if (archivoActual == archivoNuevo) {
+        return;
+    }
+
+    musica.stop();
+
+    if (musica.openFromFile(archivoNuevo)) {
+        musica.setLoop(true);
+        musica.setVolume(45.f);
+        musica.play();
+        archivoActual = archivoNuevo;
     }
 }
 
 int main() {
 
-    bool viewingScores = false;
-
     std::srand(static_cast<unsigned>(std::time(nullptr)));
 
     // Ventana principal
-    sf::RenderWindow window(sf::VideoMode(1200, 700), "Buscaminas", sf::Style::Close | sf::Style::Titlebar);
-    window.setFramerateLimit(60);
+    sf::RenderWindow ventana(sf::VideoMode(1200, 700), "Buscaminas", sf::Style::Close | sf::Style::Titlebar);
+    ventana.setFramerateLimit(60);
 
     // Fuente
-    sf::Font font;
-    if (!font.loadFromFile("C:/Windows/Fonts/arial.ttf")) {
-        font.loadFromFile("C:/Windows/Fonts/calibri.ttf");
+    sf::Font fuente;
+    if (!fuente.loadFromFile("C:/Windows/Fonts/arial.ttf")) {
+        fuente.loadFromFile("C:/Windows/Fonts/calibri.ttf");
     }
 
     // Música
-    const std::string MUSIC_SCREENS = "assets/MusicaScreens.wav";
-    const std::string MUSIC_GAME    = "assets/MusicaGame.wav";
-    sf::Music music;
-    std::string currentMusicFile = "";
-    switchMusic(music, MUSIC_SCREENS, currentMusicFile);
+    const std::string MUSICA_MENUS = "assets/MusicaScreens.wav";
+    const std::string MUSICA_JUEGO = "assets/MusicaGame.wav";
+    sf::Music musica;
+    std::string archivoMusicaActual = "";
+    cambiarMusica(musica, MUSICA_MENUS, archivoMusicaActual);
 
     // Estado global
-    PlayerData player;
-    LevelConfig chosenLevel = LEVELS[0];
-    GameScreen current = GameScreen::SPLASH;
+    PlayerData jugador;
+    LevelConfig nivelElegido = NIVELES[0];
 
-    // Instanciar pantallas
-    SplashScreen splash(window, font);
-    MainMenuScreen menu(window, font, player);
-    UserAuthScreen auth(window, font, player);
-    LevelSelectScreen levelSel(window, font, player, chosenLevel);
-    ScoreScreen scoreScreen;
-    PantallaJuego game(window, font, player, chosenLevel, scoreScreen);
+    // Pantallas
+    SplashScreen splash (ventana, fuente);
+    MainMenuScreen menu (ventana, fuente, jugador);
+    UserAuthScreen auth (ventana, fuente, jugador);
+    LevelSelectScreen selectorNivel(ventana, fuente, jugador, nivelElegido);
+    ScoreScreen puntajes;
+    PantallaJuego juego (ventana, fuente, jugador, nivelElegido, puntajes);
 
-    scoreScreen.loadScores();
+    puntajes.cargarPuntajes();
     splash.onEnter();
 
-    sf::Clock clock;
+    // Estado de pantalla
+    GameScreen pantallaActual = GameScreen::SPLASH;
+    GameScreen pantallaAnterior = GameScreen::SPLASH;
 
-    while (window.isOpen()) {
-        float dt = clock.restart().asSeconds();
-        if (dt > 0.05f) dt = 0.05f;
+    sf::Clock reloj;
 
-        sf::Event event;
+    // Game loop
+    while (ventana.isOpen()) {
 
-        // ---- PROCESAR EVENTOS ----
-        while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) window.close();
+        float dt = reloj.restart().asSeconds();
+        if (dt > 0.05f) {
+            dt = 0.05f;
+        }
 
-            switch (current) {
-            case GameScreen::SPLASH: splash.handleEvent(event); break;
-            case GameScreen::MAIN_MENU: {
-                GameScreen next = menu.handleEvent(event);
+        // Procesar eventos
+        sf::Event evento;
+        while (ventana.pollEvent(evento)) {
+            if (evento.type == sf::Event::Closed) {
+                ventana.close();
+            }
 
-                if (next == GameScreen::SCORES) {
-                    viewingScores = true;
-                    current = GameScreen::LEVEL_SELECT; // primero elegir nivel
-                } else {
-                    current = next;
+            switch (pantallaActual) {
+                case GameScreen::SPLASH: {
+                    splash.handleEvent(evento);
+                    break;
                 }
+                case GameScreen::MAIN_MENU: {
+                    // PUNTAJES va directo a ScoreScreen, sin pasar por LevelSelect
+                    pantallaActual = menu.handleEvent(evento);
+                    break;
+                }
+                case GameScreen::USER_AUTH: {
+                    pantallaActual = auth.handleEvent(evento);
+                    break;
+                }
+                case GameScreen::LEVEL_SELECT: {
+                    pantallaActual = selectorNivel.handleEvent(evento);
+                    break;
+                }
+                case GameScreen::GAME: {
+                    pantallaActual = juego.handleEvent(evento);
+                    break;
+                }
+                case GameScreen::SCORES: {
+                    pantallaActual = puntajes.handleEvent(evento);
+                    break;
+                }
+                default: {
+                    break;
+                }
+            }
+        }
+
+        // Actualizar lógica
+        switch (pantallaActual) {
+            case GameScreen::SPLASH: {
+                pantallaActual = splash.update(dt);
                 break;
             }
-            case GameScreen::USER_AUTH: current = auth.handleEvent(event); break;
-            case GameScreen::LEVEL_SELECT:
-                current = levelSel.handleEvent(event);
+            case GameScreen::MAIN_MENU: {
+                menu.update(dt);
                 break;
-            case GameScreen::GAME: current = game.handleEvent(event); break;
-            case GameScreen::SCORES: current = scoreScreen.handleEvent(event); break;
-            default: break;
+            }
+            case GameScreen::USER_AUTH: {
+                auth.update(dt);
+                break;
+            }
+            case GameScreen::LEVEL_SELECT: {
+                selectorNivel.update(dt);
+                break;
+            }
+            case GameScreen::GAME: {
+                juego.update(dt);
+                break;
+            }
+            default: {
+                break;
             }
         }
-        // 🔥 REDIRECCIÓN SEGURA (FUERA DE pollEvent)
-        if (current == GameScreen::GAME && viewingScores) {
-            current = GameScreen::SCORES;
-            viewingScores = false;
-        }
 
-        // ---- ACTUALIZAR LOGICA ----
-        switch (current) {
-        case GameScreen::SPLASH: current = splash.update(dt); break;
-        case GameScreen::MAIN_MENU: menu.update(dt); break;
-        case GameScreen::USER_AUTH: auth.update(dt); break;
-        case GameScreen::LEVEL_SELECT: levelSel.update(dt); break;
-        case GameScreen::GAME: game.update(dt); break;
-        default: break;
-        }
-
-        // ---- TRANSICIONES MUSICALES Y ONENTER ----
-        static GameScreen prevScreen = current;
-        if (current != prevScreen) {
-            switch (current) {
-            case GameScreen::MAIN_MENU: menu.onEnter(); switchMusic(music, MUSIC_SCREENS, currentMusicFile); break;
-            case GameScreen::USER_AUTH: auth.onEnter(); switchMusic(music, MUSIC_SCREENS, currentMusicFile); break;
-            case GameScreen::LEVEL_SELECT: levelSel.onEnter(); switchMusic(music, MUSIC_SCREENS, currentMusicFile); break;
-            case GameScreen::GAME: game.onEnter(); switchMusic(music, MUSIC_GAME, currentMusicFile); break;
-            default: break;
+        // Transiciones: onEnter y música
+        if (pantallaActual != pantallaAnterior) {
+            switch (pantallaActual) {
+                case GameScreen::MAIN_MENU: {
+                    menu.onEnter();
+                    cambiarMusica(musica, MUSICA_MENUS, archivoMusicaActual);
+                    break;
+                }
+                case GameScreen::USER_AUTH: {
+                    auth.onEnter();
+                    cambiarMusica(musica, MUSICA_MENUS, archivoMusicaActual);
+                    break;
+                }
+                case GameScreen::LEVEL_SELECT: {
+                    selectorNivel.onEnter();
+                    // En competitivo, preseleccionar el nivel que corresponde
+                    if (jugador.modoJuego == ModoJuego::COMPETITIVO) {
+                        nivelElegido = NIVELES[jugador.nivelCompetitivoActual];
+                    }
+                    cambiarMusica(musica, MUSICA_MENUS, archivoMusicaActual);
+                    break;
+                }
+                case GameScreen::GAME: {
+                    juego.onEnter();
+                    cambiarMusica(musica, MUSICA_JUEGO, archivoMusicaActual);
+                    break;
+                }
+                case GameScreen::SCORES: {
+                    cambiarMusica(musica, MUSICA_MENUS, archivoMusicaActual);
+                    break;
+                }
+                default: {
+                    break;
+                }
             }
-            prevScreen = current;
+
+            pantallaAnterior = pantallaActual;
         }
 
-        // ---- DIBUJAR ----
-        window.clear();
-        switch (current) {
-        case GameScreen::SPLASH: splash.draw(); break;
-        case GameScreen::MAIN_MENU: menu.draw(); break;
-        case GameScreen::USER_AUTH: auth.draw(); break;
-        case GameScreen::LEVEL_SELECT: levelSel.draw(); break;
-        case GameScreen::GAME: game.draw(); break;
-        case GameScreen::SCORES: scoreScreen.draw(window, chosenLevel.name); break;
-        default: break;
+        // Dibujar
+        ventana.clear();
+
+        switch (pantallaActual) {
+            case GameScreen::SPLASH: {
+                splash.draw();
+                break;
+            }
+            case GameScreen::MAIN_MENU: {
+                menu.draw();
+                break;
+            }
+            case GameScreen::USER_AUTH: {
+                auth.draw();
+                break;
+            }
+            case GameScreen::LEVEL_SELECT: {
+                selectorNivel.draw();
+                break;
+            }
+            case GameScreen::GAME: {
+                juego.draw();
+                break;
+            }
+            case GameScreen::SCORES: {
+                puntajes.draw(ventana, nivelElegido.nombre);
+                break;
+            }
+            default: {
+                break;
+            }
         }
-        window.display();
 
-
+        ventana.display();
     }
 
     return 0;
