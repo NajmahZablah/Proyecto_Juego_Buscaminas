@@ -7,233 +7,200 @@
 #include "UIHelpers.h"
 
 /*  MainMenuScreen.h
- *  El Menú principal Muestra:
- *  - Título animado
- *  - Nombre del jugador si hay sesión activa
- *  - Botones: JUGAR, PUNTAJES, SALIR
- *  - Botón Cerrar sesión debajo de SALIR (con sesión activa)
- *  - Partículas decorativas de fondo
- *
- *  JUGAR:
- *  Con sesión activa - va directo a LEVEL_SELECT
- *  Sin sesión - va a USER_AUTH
- *
- *  CERRAR SESIÓN:
- *  Resetea PlayerData y permanece en el menú principal
- *  Solo aparece cuando sesionActiva == true.
+ *  Menu principal del juego. Muestra:
+ *  - Titulo animado con brillo pulsante
+ *  - Nombre del jugador si hay sesion activa
+ *  - Botones: JUGAR, PUNTAJES, CREDITOS, SALIR
+ *  - Particulas voladoras de fondo
 */
 
 struct Particle {
-    sf::CircleShape forma;
-    sf::Vector2f velocidad;
-    float vida;
+    sf::CircleShape shape;
+    sf::Vector2f    vel;
+    float           life;
 };
 
 class MainMenuScreen {
 public:
 
-    MainMenuScreen(sf::RenderWindow& ventana, const sf::Font& fuente, PlayerData& jugador)
-        : m_ventana(ventana), m_fuente(fuente), m_jugador(jugador) {}
+    MainMenuScreen(sf::RenderWindow& win, const sf::Font& font, PlayerData& player)
+        : m_win(win), m_font(font), m_player(player) {}
 
     void onEnter() {
-        const float anchoVentana = static_cast<float>(m_ventana.getSize().x);
-        const float altoVentana = static_cast<float>(m_ventana.getSize().y);
-        const float centroX = anchoVentana / 2.f;
+        const float W  = static_cast<float>(m_win.getSize().x);
+        const float H  = static_cast<float>(m_win.getSize().y);
+        const float cx = W / 2.f;
 
-        // Título
-        m_titulo.setFont(m_fuente);
-        m_titulo.setString("BUSCAMINAS");
-        m_titulo.setCharacterSize(66);
-        m_titulo.setStyle(sf::Text::Bold);
-        m_titulo.setLetterSpacing(2.8f);
-        m_titulo.setFillColor(sf::Color::White);
-        centrarTexto(m_titulo, centroX, 108.f);
+        // intentar cargar fuente especial para el titulo
+        // si no existe usa la fuente base con espaciado
+        bool titleFontLoaded = m_titleFont.loadFromFile("assets/titulo.ttf");
 
-        // Info del jugador
-        m_textoJugador.setFont(m_fuente);
-        m_textoJugador.setCharacterSize(18);
-        m_textoJugador.setFillColor({130, 195, 255});
+        // titulo principal
+        m_title.setFont(titleFontLoaded ? m_titleFont : m_font);
+        m_title.setString("BUSCAMINAS");
+        m_title.setCharacterSize(66);
+        m_title.setStyle(sf::Text::Bold);
+        m_title.setLetterSpacing(2.8f);
+        m_title.setFillColor(sf::Color::White);
+        centerText(m_title, cx, 95.f);
 
-        // Botones principales (espaciado uniforme de 80px)
-        m_btnJugar.setup (m_fuente, "JUGAR", { centroX, 290.f}, {260.f, 56.f}, 23);
-        m_btnPuntajes.setup(m_fuente, "PUNTAJES", {centroX, 370.f}, {260.f, 56.f}, 23);
-        m_btnSalir.setup (m_fuente, "SALIR", {centroX, 450.f}, {260.f, 56.f}, 23);
-        m_btnSalir.normalColor = {75, 18, 18, 220};
-        m_btnSalir.hoverColor = {170, 35, 35, 240};
+        // texto de usuario activo - solo visible si hay sesion
+        m_userInfo.setFont(m_font);
+        m_userInfo.setCharacterSize(18);
+        m_userInfo.setFillColor({130, 195, 255});
 
-        // Botón cerrar sesión (debajo de SALIR, más pequeño)
-        m_btnCerrarSesion.setup(m_fuente, "Cerrar sesion", {centroX, 518.f}, {180.f, 36.f}, 14);
-        m_btnCerrarSesion.normalColor = {55, 15, 15, 180};
-        m_btnCerrarSesion.hoverColor = {120, 28, 28, 220};
+        // botones del menu - espaciado de 72px entre cada uno
+        // se agrego CREDITOS entre PUNTAJES y SALIR
+        m_btnPlay.setup   (m_font, "JUGAR",    {cx, 255.f}, {260.f, 52.f}, 22);
+        m_btnScores.setup (m_font, "PUNTAJES", {cx, 327.f}, {260.f, 52.f}, 22);
+        m_btnCredits.setup(m_font, "CREDITOS", {cx, 399.f}, {260.f, 52.f}, 22);
+        m_btnExit.setup   (m_font, "SALIR",    {cx, 471.f}, {260.f, 52.f}, 22);
 
-        // Créditos
-        m_creditos.setFont(m_fuente);
-        m_creditos.setString("Nadiesda | Najmah | Alex");
-        m_creditos.setCharacterSize(13);
-        m_creditos.setFillColor({70, 110, 170});
-        centrarTexto(m_creditos, centroX, altoVentana - 22.f);
+        // salir en rojo para que destaque
+        m_btnExit.normalColor    = { 75, 18,  18, 220};
+        m_btnExit.hoverColor     = {170, 35,  35, 240};
 
-        generarParticulas(28);
-        actualizarTextoJugador();
-        m_tiempo = 0.f;
+        // creditos en azul diferente para distinguirlo
+        m_btnCredits.normalColor = { 18, 45,  80, 220};
+        m_btnCredits.hoverColor  = { 35, 90, 160, 240};
+
+        // texto de creditos abajo de todo
+        m_credits.setFont(m_font);
+        m_credits.setString("Programacion 3");
+        m_credits.setCharacterSize(13);
+        m_credits.setFillColor({70, 110, 170});
+        centerText(m_credits, cx, H - 22.f);
+
+        spawnParticles(28);
+        updateUserInfo();
+        m_time = 0.f;
     }
 
-    GameScreen handleEvent(const sf::Event& evento) {
-
-        // Cerrar sesión (solo si hay sesión activa)
-        if (m_jugador.sesionActiva && m_btnCerrarSesion.isClicked(evento)) {
-            m_jugador = PlayerData{};
-            actualizarTextoJugador();
-            return GameScreen::MAIN_MENU;
-        }
-
-        if (m_btnJugar.isClicked(evento)) {
-            if (m_jugador.sesionActiva) {
-                return GameScreen::LEVEL_SELECT;
-            }
-            return GameScreen::USER_AUTH;
-        }
-
-        if (m_btnPuntajes.isClicked(evento)) {
-            return GameScreen::SCORES;
-        }
-        if (m_btnSalir.isClicked(evento)) {
-            m_ventana.close();
-        }
-
+    GameScreen handleEvent(const sf::Event& e) {
+        if (m_btnPlay.isClicked(e))    return GameScreen::USER_AUTH;
+        if (m_btnScores.isClicked(e))  return GameScreen::SCORES;    // va al ranking
+        if (m_btnCredits.isClicked(e)) return GameScreen::CREDITS;   // nuevo!
+        if (m_btnExit.isClicked(e))    m_win.close();
         return GameScreen::MAIN_MENU;
     }
 
     void update(float dt) {
-        m_btnJugar.update(m_ventana);
-        m_btnPuntajes.update(m_ventana);
-        m_btnSalir.update(m_ventana);
-        actualizarParticulas(dt);
-        actualizarTextoJugador();
-
-        if (m_jugador.sesionActiva) {
-            m_btnCerrarSesion.update(m_ventana);
-        }
-
-        m_tiempo += dt;
+        m_btnPlay.update(m_win);
+        m_btnScores.update(m_win);
+        m_btnCredits.update(m_win);
+        m_btnExit.update(m_win);
+        updateParticles(dt);
+        updateUserInfo();
+        m_time += dt;
     }
 
     void draw() {
-        const float anchoVentana = static_cast<float>(m_ventana.getSize().x);
-        const float altoVentana = static_cast<float>(m_ventana.getSize().y);
-        const float centroX = anchoVentana / 2.f;
+        const float W  = static_cast<float>(m_win.getSize().x);
+        const float H  = static_cast<float>(m_win.getSize().y);
+        const float cx = W / 2.f;
 
-        // Fondo degradado
-        m_ventana.draw(UI::makeGradientBackground(static_cast<unsigned>(anchoVentana),
-                                                  static_cast<unsigned>(altoVentana),
-                                                  {4, 7, 22}, {8, 22, 62}));
+        // fondo degradado oscuro
+        m_win.draw(UI::makeGradientBackground(
+            static_cast<unsigned>(W), static_cast<unsigned>(H),
+            {4, 7, 22}, {8, 22, 62}));
 
-        // Partículas
-        for (auto& p : m_particulas) {
-            m_ventana.draw(p.forma);
-        }
+        // particulas de fondo
+        for (auto& p : m_particles) m_win.draw(p.shape);
 
-        // Panel decorativo
-        sf::RectangleShape panel({300.f, 260.f});
-        panel.setOrigin(150.f, 130.f);
-        panel.setPosition(centroX, 370.f);
+        // panel detras de los botones
+        sf::RectangleShape panel({300.f, 310.f});
+        panel.setOrigin(150.f, 155.f);
+        panel.setPosition(cx, 385.f);
         panel.setFillColor({255, 255, 255, 10});
         panel.setOutlineThickness(1.f);
         panel.setOutlineColor({90, 150, 255, 35});
-        m_ventana.draw(panel);
+        m_win.draw(panel);
 
-        // Título con brillo pulsante
-        float brillo = 200.f + 55.f * std::sin(m_tiempo * 1.8f);
-        m_titulo.setFillColor({static_cast<sf::Uint8>(brillo), 245, 255});
-        m_ventana.draw(m_titulo);
+        // titulo con brillo pulsante
+        float glow = 200.f + 55.f * std::sin(m_time * 1.8f);
+        m_title.setFillColor({static_cast<sf::Uint8>(glow), 245, 255});
+        m_win.draw(m_title);
 
-        // Línea separadora bajo el título
-        sf::RectangleShape separador({260.f, 1.f});
-        separador.setOrigin(130.f, 0.f);
-        separador.setPosition(centroX, 145.f);
-        separador.setFillColor({55, 100, 200, 100});
-        m_ventana.draw(separador);
+        // separador bajo el titulo
+        sf::RectangleShape sep({260.f, 1.f});
+        sep.setOrigin(130.f, 0.f);
+        sep.setPosition(cx, 128.f);
+        sep.setFillColor({55, 100, 200, 100});
+        m_win.draw(sep);
 
-        // Info del jugador
-        m_ventana.draw(m_textoJugador);
+        // info del jugador (solo si inicio sesion)
+        m_win.draw(m_userInfo);
 
-        // Botones principales
-        m_btnJugar.draw(m_ventana);
-        m_btnPuntajes.draw(m_ventana);
-        m_btnSalir.draw(m_ventana);
+        // botones
+        m_btnPlay.draw(m_win);
+        m_btnScores.draw(m_win);
+        m_btnCredits.draw(m_win);
+        m_btnExit.draw(m_win);
 
-        // Botón cerrar sesión (si hay sesión activa)
-        if (m_jugador.sesionActiva) {
-            m_btnCerrarSesion.draw(m_ventana);
-        }
-
-        // Créditos
-        m_ventana.draw(m_creditos);
+        m_win.draw(m_credits);
     }
 
 private:
 
-    void actualizarTextoJugador() {
-        std::string info = m_jugador.sesionActiva ? "Jugador: " + m_jugador.nombre : "";
-        m_textoJugador.setString(info);
-        centrarTexto(m_textoJugador, static_cast<float>(m_ventana.getSize().x) / 2.f, 168.f);
+    // actualiza el texto de usuario
+    // cadena vacia si no hay sesion activa
+    void updateUserInfo() {
+        std::string info = m_player.sesionActiva
+                               ? "Jugador: " + m_player.nombre
+                               : "";
+        m_userInfo.setString(info);
+        centerText(m_userInfo, static_cast<float>(m_win.getSize().x) / 2.f, 148.f);
     }
 
-    void generarParticulas(int cantidad) {
-        m_particulas.clear();
-        unsigned anchoV = m_ventana.getSize().x;
-        unsigned altoV = m_ventana.getSize().y;
-
-        for (int i = 0; i < cantidad; i++) {
+    // genera particulas en posiciones aleatorias al entrar al menu
+    void spawnParticles(int n) {
+        m_particles.clear();
+        unsigned W = m_win.getSize().x, H = m_win.getSize().y;
+        for (int i = 0; i < n; ++i) {
             Particle p;
-            float radio = 3.f + static_cast<float>(std::rand() % 7);
-            p.forma.setRadius(radio);
-            p.forma.setOrigin(radio, radio);
-            p.forma.setPosition(static_cast<float>(std::rand() % anchoV),
-                                static_cast<float>(std::rand() % altoV));
-            p.forma.setFillColor({190, 35, 35, static_cast<sf::Uint8>(55 + std::rand() % 75) });
-            p.velocidad = {(std::rand() % 40 - 20) / 10.f, (0.4f + (std::rand() % 10) / 10.f)};
-            p.vida = 5.f + static_cast<float>(std::rand() % 8);
-            m_particulas.push_back(p);
+            float r = 3.f + static_cast<float>(std::rand() % 7);
+            p.shape.setRadius(r);
+            p.shape.setOrigin(r, r);
+            p.shape.setPosition(
+                static_cast<float>(std::rand() % W),
+                static_cast<float>(std::rand() % H));
+            p.shape.setFillColor({190, 35, 35,
+                                  static_cast<sf::Uint8>(55 + std::rand() % 75)});
+            p.vel  = {(std::rand() % 40 - 20) / 10.f,
+                     -(0.4f + (std::rand() % 10) / 10.f)};
+            p.life = 5.f + static_cast<float>(std::rand() % 8);
+            m_particles.push_back(p);
         }
     }
 
-    void actualizarParticulas(float dt) {
-        unsigned anchoV = m_ventana.getSize().x;
-        unsigned altoV = m_ventana.getSize().y;
-
-        for (auto& p : m_particulas) {
-            p.forma.move(p.velocidad * dt * 30.f);
-            p.vida -= dt;
-
-            if (p.forma.getPosition().y < -20.f || p.vida <= 0.f) {
-                p.forma.setPosition(static_cast<float>(std::rand() % anchoV),
-                                    static_cast<float>(altoV + 10));
-                p.vida = 5.f + static_cast<float>(std::rand() % 8);
+    // mueve las particulas y las reinicia cuando salen de pantalla
+    void updateParticles(float dt) {
+        unsigned W = m_win.getSize().x, H = m_win.getSize().y;
+        for (auto& p : m_particles) {
+            p.shape.move(p.vel * dt * 30.f);
+            p.life -= dt;
+            if (p.shape.getPosition().y < -20.f || p.life <= 0.f) {
+                p.shape.setPosition(
+                    static_cast<float>(std::rand() % W),
+                    static_cast<float>(H + 10));
+                p.life = 5.f + static_cast<float>(std::rand() % 8);
             }
         }
     }
 
-    void centrarTexto(sf::Text& texto, float x, float y) {
-        sf::FloatRect limites = texto.getLocalBounds();
-        texto.setOrigin(limites.left + limites.width  / 2.f, limites.top  + limites.height / 2.f);
-        texto.setPosition(x, y);
+    void centerText(sf::Text& t, float x, float y) {
+        sf::FloatRect r = t.getLocalBounds();
+        t.setOrigin(r.left + r.width / 2.f, r.top + r.height / 2.f);
+        t.setPosition(x, y);
     }
 
-    // Variables miembro
-    sf::RenderWindow& m_ventana;
-    const sf::Font& m_fuente;
-    PlayerData& m_jugador;
+    sf::RenderWindow& m_win;
+    const sf::Font&   m_font;
+    PlayerData&       m_player;
 
-    sf::Text m_titulo;
-    sf::Text m_textoJugador;
-    sf::Text m_creditos;
-
-    Button m_btnJugar;
-    Button m_btnPuntajes;
-    Button m_btnSalir;
-    Button m_btnCerrarSesion;
-
-    std::vector<Particle> m_particulas;
-    float m_tiempo = 0.f;
+    sf::Font   m_titleFont;   // fuente especial para el titulo (opcional)
+    sf::Text   m_title, m_userInfo, m_credits;
+    Button     m_btnPlay, m_btnScores, m_btnCredits, m_btnExit;
+    std::vector<Particle> m_particles;
+    float      m_time = 0.f;
 };

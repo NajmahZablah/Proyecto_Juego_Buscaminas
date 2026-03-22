@@ -2,52 +2,44 @@
 #include <SFML/Graphics.hpp>
 #include <string>
 
-/*  ScreenManager.h
- *  Define los estados posibles del juego y los datos
- *  del jugador que se comparten entre todas las pantallas
-*/
+//  ScreenManager.h
+//  Define los estados posibles del juego y los datos
+//  del jugador que se comparten entre todas las pantallas.
 
-// Estados de pantalla
-// main.cpp usa este enum para saber qué pantalla dibujar
+// todos los estados posibles de pantalla
+// main.cpp usa este enum para saber que pantalla dibujar
 enum class GameScreen {
-    SPLASH, // presentación animada al iniciar
-    MAIN_MENU, // menú principal
-    USER_AUTH, // login / registro de usuario
-    LEVEL_SELECT, // selección de nivel
-    GAME, // tablero de Buscaminas
-    SCORES // pantalla de puntajes
+    SPLASH,        // presentacion animada al iniciar
+    MAIN_MENU,     // menu principal
+    USER_AUTH,     // login / registro de usuario
+    LEVEL_SELECT,  // seleccion de nivel
+    GAME,          // tablero de buscaminas
+    SCORES,        // pantalla de ranking
+    CREDITS        // pantalla de creditos (nueva!)
 };
 
-// Modo de juego elegido en la pantalla de selección de nivel
+// modo de juego del jugador
 enum class ModoJuego {
-    LIBRE, // el jugador elige cualquier nivel libremente
-    COMPETITIVO // debe pasar nivel 1 -> 2 -> 3 en orden
+    LIBRE,
+    COMPETITIVO
 };
 
-/* Datos del jugador activo
- * Se pasa por referencia entre pantallas para que todas
- * lean y escriban el mismo objeto
-*/
+//  datos del jugador activo
+//  se pasa por referencia entre pantallas para que todas
+//  vean los mismos datos sin duplicarlos
 struct PlayerData {
+    std::string nombre        = "";
+    std::string contrasena    = "";
 
-    // Datos de cuenta
-    std::string nombre = ""; // nombre de usuario
-    std::string contrasena = ""; // contraseña
+    int mejorTiempoFacil        = 0;  // mejor tiempo nivel facil (seg)
+    int mejorTiempoMedio        = 0;  // mejor tiempo nivel intermedio
+    int mejorTiempoDificil      = 0;  // mejor tiempo nivel experto
+    int mejorTiempoCompetitivo  = 0;  // mejor tiempo modo competitivo
 
-    // Mejores tiempos por nivel individual (en segundos, 0 = nunca completado)
-    int mejorTiempoFacil = 0;
-    int mejorTiempoMedio = 0;
-    int mejorTiempoDificil = 0;
+    bool sesionActiva = false;        // true si hay sesion activa
 
-    // Mejor tiempo competitivo: suma de los 3 niveles (0 = nunca completado)
-    int mejorTiempoCompetitivo = 0;
-
-    // Estado de sesión
-    bool sesionActiva = false;
-
-    // Estado de la sesión competitiva en curso
-    // Estos campos NO se guardan en disco, se resetean al iniciar cada partida
-    ModoJuego modoJuego = ModoJuego::LIBRE;
-    int nivelCompetitivoActual = 0; // 0 = no ha empezado, 1 = pasó nivel 1, 2 = pasó nivel 2
-    float tiempoAcumulado = 0.f; // suma de tiempos de los niveles ya completados
+    // datos para el modo competitivo
+    ModoJuego modoJuego              = ModoJuego::LIBRE;
+    int       nivelCompetitivoActual = 0;   // 0,1,2 -> en que nivel va
+    float     tiempoAcumulado        = 0.f; // suma de tiempos en competitivo
 };
