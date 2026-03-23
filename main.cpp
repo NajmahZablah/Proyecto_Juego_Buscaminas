@@ -50,6 +50,12 @@ int main() {
         sf::Style::Close | sf::Style::Titlebar);
     window.setFramerateLimit(60);
 
+    // Icono de la ventana usando bomba.png
+    sf::Image icono;
+    if (icono.loadFromFile("assets/bomba.png")) {
+        window.setIcon(icono.getSize().x, icono.getSize().y, icono.getPixelsPtr());
+    }
+
     // cargar fuente del sistema
     sf::Font font;
     if (!font.loadFromFile("C:/Windows/Fonts/arial.ttf")) {

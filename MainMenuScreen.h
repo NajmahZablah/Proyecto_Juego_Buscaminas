@@ -31,16 +31,12 @@ public:
         const float H  = static_cast<float>(m_win.getSize().y);
         const float cx = W / 2.f;
 
-        // intentar cargar fuente especial para el titulo
-        // si no existe usa la fuente base con espaciado
-        bool titleFontLoaded = m_titleFont.loadFromFile("assets/titulo.ttf");
-
         // titulo principal
-        m_title.setFont(titleFontLoaded ? m_titleFont : m_font);
+        m_title.setFont(m_font);
         m_title.setString("BUSCAMINAS");
-        m_title.setCharacterSize(66);
+        m_title.setCharacterSize(62);
         m_title.setStyle(sf::Text::Bold);
-        m_title.setLetterSpacing(2.8f);
+        m_title.setLetterSpacing(1.4f);
         m_title.setFillColor(sf::Color::White);
         centerText(m_title, cx, 95.f);
 
@@ -108,9 +104,9 @@ public:
         for (auto& p : m_particles) m_win.draw(p.shape);
 
         // panel detras de los botones
-        sf::RectangleShape panel({300.f, 310.f});
-        panel.setOrigin(150.f, 155.f);
-        panel.setPosition(cx, 385.f);
+        sf::RectangleShape panel({300.f, 290.f});
+        panel.setOrigin(150.f, 145.f);
+        panel.setPosition(cx, 363.f);
         panel.setFillColor({255, 255, 255, 10});
         panel.setOutlineThickness(1.f);
         panel.setOutlineColor({90, 150, 255, 35});
@@ -198,7 +194,6 @@ private:
     const sf::Font&   m_font;
     PlayerData&       m_player;
 
-    sf::Font   m_titleFont;   // fuente especial para el titulo (opcional)
     sf::Text   m_title, m_userInfo, m_credits;
     Button     m_btnPlay, m_btnScores, m_btnCredits, m_btnExit;
     std::vector<Particle> m_particles;
