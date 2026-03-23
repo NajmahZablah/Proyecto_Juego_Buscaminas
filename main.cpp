@@ -18,7 +18,7 @@
 #include "SplashScreen.h"
 #include "MainMenuScreen.h"
 #include "UserAuthScreen.h"
-#include "LevelSelectScreen.h"   // aqui esta definido NIVELES[]
+#include "LevelSelectScreen.h"
 #include "GameScreen.h"
 #include "ScoreScreen.h"
 #include "CreditsScreen.h"

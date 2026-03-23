@@ -15,7 +15,7 @@ enum class GameScreen {
     LEVEL_SELECT,  // seleccion de nivel
     GAME,          // tablero de buscaminas
     SCORES,        // pantalla de ranking
-    CREDITS        // pantalla de creditos (nueva!)
+    CREDITS        // pantalla de creditos
 };
 
 // modo de juego del jugador

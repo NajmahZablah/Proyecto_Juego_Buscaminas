@@ -6,7 +6,7 @@
 /* UIHelpers.h
  * Componentes reutilizables de UI para todas las pantallas
  *       Button -> botón con hover y click
- *       InputField -> campo de texto (soporta contraseña)
+ *       InputField ->campo de texto (soporta contraseña)
  *       UI:: -> helpers de dibujo
  *
  *  BUTTON
@@ -174,4 +174,4 @@ namespace UI {
         return bg;
     }
 
-} // namespace UI
+}

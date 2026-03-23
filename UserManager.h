@@ -9,7 +9,7 @@
 /*  UserManager.h
  *  Maneja toda la persistencia de usuarios con fstream
  *
- *  ARCHIVO: users.txt (se cambio de .dat a .txt)
+ *  ARCHIVO: users.txt
  *  FORMATO: nombre,contrasena,mejorFacil,mejorMedio,mejorDificil,mejorCompetitivo
 */
 
@@ -82,7 +82,7 @@ public:
     }
 
     // actualiza el mejor puntaje en users.txt
-    // solo sobreescribe si el nuevo tiempo es menor (mejor)
+    // solo sobreescribe si el nuevo tiempo es menor
     static void guardarPuntaje(const PlayerData& jugador) {
         auto lista = cargarTodos();
         for (auto& datos : lista) {

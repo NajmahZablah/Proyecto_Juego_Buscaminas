@@ -45,7 +45,7 @@ public:
         m_userInfo.setCharacterSize(18);
         m_userInfo.setFillColor({130, 195, 255});
 
-        // botones del menu - espaciado de 72px entre cada uno
+
         // se agrego CREDITOS entre PUNTAJES y SALIR
         m_btnPlay.setup   (m_font, "JUGAR",    {cx, 255.f}, {260.f, 52.f}, 22);
         m_btnScores.setup (m_font, "PUNTAJES", {cx, 327.f}, {260.f, 52.f}, 22);
